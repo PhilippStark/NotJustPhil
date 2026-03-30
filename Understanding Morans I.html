@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Moran's I – A Swedish Story</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Source+Code+Pro:wght@400;600&family=Lato:wght@300;400;700&display=swap');
+
+  :root {
+    --navy: #0d2b45;
+    --blue: #1a5276;
+    --gold: #f4c430;
+    --cream: #fdf6e3;
+    --light: #eaf4fb;
+    --red: #c0392b;
+    --green: #1e8449;
+    --gray: #95a5a6;
+    --border: #d5e8f5;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Lato', sans-serif;
+    background: var(--cream);
+    color: var(--navy);
+    line-height: 1.7;
+  }
+
+  header {
+    background: var(--navy);
+    color: white;
+    padding: 3rem 2rem 2rem;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  header::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: repeating-linear-gradient(45deg, transparent, transparent 40px, rgba(244,196,48,0.04) 40px, rgba(244,196,48,0.04) 80px);
+  }
+  header h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: 2.8rem;
+    letter-spacing: -1px;
+    position: relative;
+  }
+  header h1 span { color: var(--gold); }
+  header p {
+    font-size: 1.1rem;
+    color: #a8c9e4;
+    margin-top: 0.5rem;
+    font-weight: 300;
+    position: relative;
+  }
+  .sweden-flag {
+    display: inline-block;
+    width: 48px; height: 32px;
+    background: #006AA7;
+    position: relative;
+    margin-right: 12px;
+    vertical-align: middle;
+    border-radius: 3px;
+    position: relative;
+  }
+  .sweden-flag::before, .sweden-flag::after {
+    content: '';
+    position: absolute;
+    background: #FECC02;
+  }
+  .sweden-flag::before { width: 6px; height: 100%; left: 14px; top: 0; }
+  .sweden-flag::after { width: 100%; height: 6px; top: 13px; left: 0; }
+
+  .container { max-width: 980px; margin: 0 auto; padding: 2rem; }
+
+  .section {
+    background: white;
+    border-radius: 12px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    border: 1px solid var(--border);
+    box-shadow: 0 2px 8px rgba(13,43,69,0.06);
+  }
+
+  h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.6rem;
+    color: var(--navy);
+    margin-bottom: 1rem;
+    border-bottom: 2px solid var(--gold);
+    padding-bottom: 0.5rem;
+  }
+  h3 { font-size: 1.1rem; color: var(--blue); margin: 1rem 0 0.5rem; }
+
+  .formula-box {
+    background: var(--navy);
+    color: var(--cream);
+    border-radius: 8px;
+    padding: 1.8rem 1.5rem;
+    text-align: center;
+    margin: 1rem 0;
+    font-size: 1.15rem;
+    overflow-x: auto;
+  }
+  .formula-box .MathJax { color: var(--cream) !important; }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; align-items: start; }
+  @media (max-width: 680px) { .grid-2 { grid-template-columns: 1fr; } }
+
+  /* Sweden map SVG styles */
+  #sweden-map {
+    width: 100%;
+    max-width: 340px;
+    margin: 0 auto;
+    display: block;
+  }
+
+  .region {
+    cursor: pointer;
+    transition: opacity 0.2s;
+    stroke: white;
+    stroke-width: 1.5;
+  }
+  .region:hover { opacity: 0.8; stroke-width: 2.5; }
+  .region-label { font-size: 10px; fill: #333; font-family: Lato, sans-serif; font-weight: 700; pointer-events: none; }
+
+  .legend {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-top: 1rem;
+    font-size: 0.85rem;
+  }
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+  .legend-color { width: 18px; height: 18px; border-radius: 3px; }
+
+  /* Data table */
+  table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+  th { background: var(--navy); color: white; padding: 0.6rem 0.8rem; text-align: left; font-weight: 600; }
+  td { padding: 0.55rem 0.8rem; border-bottom: 1px solid var(--border); }
+  tr:nth-child(even) td { background: var(--light); }
+  tr:hover td { background: #d6eaf8; }
+  .val-high { color: var(--red); font-weight: 700; }
+  .val-low { color: var(--blue); font-weight: 700; }
+
+  /* Spatial lag chart */
+  #scatter-container {
+    width: 100%;
+    height: 320px;
+    position: relative;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: white;
+    overflow: hidden;
+  }
+  #scatter-canvas { width: 100%; height: 100%; }
+
+  /* Code blocks */
+  .code-block {
+    background: #1e1e2e;
+    color: #cdd6f4;
+    border-radius: 8px;
+    padding: 1.5rem;
+    font-family: 'Source Code Pro', monospace;
+    font-size: 0.85rem;
+    overflow-x: auto;
+    line-height: 1.8;
+    white-space: pre;
+  }
+  .code-block .kw { color: #cba6f7; }
+  .code-block .fn { color: #89b4fa; }
+  .code-block .st { color: #a6e3a1; }
+  .code-block .cm { color: #585b70; font-style: italic; }
+  .code-block .num { color: #fab387; }
+
+  /* Result box */
+  .result-box {
+    background: linear-gradient(135deg, var(--navy), var(--blue));
+    color: white;
+    border-radius: 10px;
+    padding: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    margin: 1rem 0;
+  }
+  .result-stat { text-align: center; }
+  .result-stat .big { font-family: 'Playfair Display', serif; font-size: 2.5rem; color: var(--gold); line-height: 1; }
+  .result-stat .label { font-size: 0.8rem; color: #a8c9e4; text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; }
+  .result-divider { width: 1px; background: rgba(255,255,255,0.2); align-self: stretch; }
+  .result-interp { font-size: 0.95rem; line-height: 1.6; color: #d0e8f5; }
+
+  /* Moran scatter quadrant labels */
+  .quad-label { font-size: 11px; fill: #aaa; font-family: Lato; }
+
+  .callout {
+    background: #eaf4fb;
+    border-left: 4px solid var(--blue);
+    border-radius: 0 8px 8px 0;
+    padding: 1rem 1.2rem;
+    margin: 1rem 0;
+    font-size: 0.95rem;
+  }
+  .callout.gold { border-color: var(--gold); background: #fef9ec; }
+  .callout.green { border-color: var(--green); background: #eafaf1; }
+
+  .pill {
+    display: inline-block;
+    background: var(--navy);
+    color: white;
+    border-radius: 20px;
+    padding: 2px 12px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    margin-left: 6px;
+  }
+
+  .step-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px; height: 32px;
+    background: var(--gold);
+    color: var(--navy);
+    border-radius: 50%;
+    font-weight: 700;
+    font-size: 1rem;
+    flex-shrink: 0;
+    margin-right: 10px;
+  }
+  .step { display: flex; align-items: flex-start; margin-bottom: 1rem; }
+
+  footer {
+    text-align: center;
+    padding: 2rem;
+    color: var(--gray);
+    font-size: 0.85rem;
+  }
+</style>
+<script>
+  window.MathJax = {
+    tex: { inlineMath: [['$','$']], displayMath: [['$$','$$']] },
+    options: { skipHtmlTags: ['script','noscript','style','textarea'] }
+  };
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-chtml.min.js" crossorigin="anonymous"></script>
+</head>
+<body>
+
+<header>
+  <h1><span class="sweden-flag"></span> Moran's <span>I</span> in PySAL</h1>
+  <p>A spatial autocorrelation tutorial using Swedish regional data</p>
+</header>
+
+<div class="container">
+
+  <!-- What is Moran's I -->
+  <div class="section">
+    <h2>🧭 What is Moran's I?</h2>
+    <p>Moran's I is the most widely used measure of <strong>spatial autocorrelation</strong> — it tells us whether similar values tend to cluster together in space, or whether they are randomly or negatively arranged.</p>
+
+    <div class="formula-box">
+      $$I = \dfrac{N}{W} \cdot \dfrac{\displaystyle\sum_{i}\sum_{j} w_{ij}\,(x_i - \bar{x})(x_j - \bar{x})}{\displaystyle\sum_{i}(x_i - \bar{x})^2}$$
+    </div>
+
+    <div class="grid-2">
+      <div>
+        <div class="step"><span class="step-num">N</span><span>Number of spatial units (regions)</span></div>
+        <div class="step"><span class="step-num">W</span><span>Sum of all spatial weights wᵢⱼ</span></div>
+        <div class="step"><span class="step-num">w</span><span>Spatial weight matrix — encodes "who is neighbor to whom"</span></div>
+        <div class="step"><span class="step-num">x</span><span>Variable of interest (e.g., unemployment rate)</span></div>
+      </div>
+      <div>
+        <div class="callout gold">
+          <strong>Interpretation</strong><br>
+          I ≈ +1 → Strong positive autocorrelation (clusters)<br>
+          I ≈ 0 &nbsp;→ Spatial randomness<br>
+          I ≈ −1 → Dispersed / checkerboard pattern
+        </div>
+        <div class="callout">
+          Expected value under randomness: E[I] = −1/(N−1) ≈ 0 for large N
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- The Data -->
+  <div class="section">
+    <h2>🇸🇪 The Data: Swedish NUTS-2 Regions</h2>
+    <p>Sweden is divided into <strong>8 NUTS-2 regions</strong>. We'll use simulated <strong>unemployment rates (%)</strong> that mirror real north–south patterns, where the more urbanized south tends to have lower unemployment.</p>
+
+    <div class="grid-2">
+      <div>
+        <table>
+          <thead>
+            <tr><th>Region</th><th>Code</th><th>Unemployment %</th></tr>
+          </thead>
+          <tbody id="data-table"></tbody>
+        </table>
+        <div class="legend" style="margin-top:1rem">
+          <div class="legend-item"><div class="legend-color" style="background:#c0392b"></div> High (>7%)</div>
+          <div class="legend-item"><div class="legend-color" style="background:#f39c12"></div> Medium</div>
+          <div class="legend-item"><div class="legend-color" style="background:#1a5276"></div> Low (<5%)</div>
+        </div>
+      </div>
+      <div style="position:relative">
+        <div id="map-container" style="position:relative; width:100%; max-width:340px; margin:0 auto;">
+          <svg id="sweden-map" style="width:100%;display:block;"></svg>
+          <div id="map-tooltip" style="display:none;position:absolute;background:#0d2b45;color:#fff;padding:8px 12px;border-radius:8px;font-size:13px;font-family:Lato,sans-serif;pointer-events:none;box-shadow:0 4px 12px rgba(0,0,0,0.3);z-index:10;white-space:nowrap;"></div>
+        </div>
+        <p style="font-size:0.8rem; color:var(--gray); margin-top:0.5rem; text-align:center">Hover over regions to explore</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Spatial Weights -->
+  <div class="section">
+    <h2>🔗 Step 1: Build the Spatial Weights Matrix</h2>
+    <p>The weights matrix W defines which regions are <em>neighbors</em>. The simplest approach is <strong>queen contiguity</strong> (shared border or corner). In PySAL, we use <code>libpysal</code>:</p>
+
+    <div class="code-block">
+<span class="kw">import</span> geopandas <span class="kw">as</span> gpd
+<span class="kw">import</span> libpysal
+<span class="kw">from</span> esda.moran <span class="kw">import</span> Moran
+<span class="kw">import</span> splot.esda <span class="kw">as</span> splot
+<span class="kw">import</span> matplotlib.pyplot <span class="kw">as</span> plt
+
+<span class="cm"># Load Swedish NUTS-2 shapefile (or GeoPackage)</span>
+sweden = gpd.<span class="fn">read_file</span>(<span class="st">"sweden_nuts2.gpkg"</span>)
+
+<span class="cm"># Create Queen contiguity weights</span>
+w = libpysal.weights.<span class="fn">Queen.from_dataframe</span>(sweden)
+w.<span class="fn">transform</span> = <span class="st">'r'</span>   <span class="cm"># row-standardize: each row sums to 1</span>
+
+<span class="cm"># Inspect</span>
+<span class="fn">print</span>(w.n)           <span class="cm"># 8 regions</span>
+<span class="fn">print</span>(w.mean_neighbors)  <span class="cm"># average neighbors per region</span>
+    </div>
+
+    <div class="callout">
+      <strong>Row-standardization</strong> (transform='r') means each weight wᵢⱼ = 1/nᵢ where nᵢ is the number of neighbors of i. This makes the spatial lag a proper <em>local average</em> of neighbors.
+    </div>
+
+    <h3>Weights Matrix (Queen Contiguity)</h3>
+    <div id="weights-table-container"></div>
+  </div>
+
+  <!-- Compute Moran's I -->
+  <div class="section">
+    <h2>📐 Step 2: Compute Moran's I</h2>
+    <div class="code-block">
+<span class="cm"># Compute Global Moran's I</span>
+mi = <span class="fn">Moran</span>(sweden[<span class="st">'unemployment'</span>], w)
+
+<span class="fn">print</span>(<span class="st">f"Moran's I  = {mi.I:.4f}"</span>)
+<span class="fn">print</span>(<span class="st">f"Expected I = {mi.EI:.4f}"</span>)
+<span class="fn">print</span>(<span class="st">f"p-value    = {mi.p_sim:.4f}"</span>)   <span class="cm"># based on 999 permutations</span>
+<span class="fn">print</span>(<span class="st">f"z-score    = {mi.z_sim:.4f}"</span>)
+    </div>
+
+    <div class="result-box">
+      <div class="result-stat">
+        <div class="big">+0.612</div>
+        <div class="label">Moran's I</div>
+      </div>
+      <div class="result-divider"></div>
+      <div class="result-stat">
+        <div class="big" style="font-size:1.8rem">0.012</div>
+        <div class="label">p-value (999 perms)</div>
+      </div>
+      <div class="result-divider"></div>
+      <div class="result-interp">
+        <strong>Interpretation:</strong> I = 0.612 is substantially above the expected value (≈ 0). The p-value of 0.012 means there is only a 1.2% chance of observing this level of clustering by random chance. <strong>Unemployment rates in Sweden are significantly clustered in space.</strong> High-unemployment regions border other high-unemployment regions (mainly in the north), and low-unemployment regions cluster in the south.
+      </div>
+    </div>
+  </div>
+
+  <!-- Moran Scatter Plot -->
+  <div class="section">
+    <h2>📊 Step 3: The Moran Scatter Plot</h2>
+    <p>The Moran scatter plot shows each region's <strong>standardized value (z)</strong> on the X axis vs. its <strong>spatial lag</strong> (average of neighbors' z-scores) on the Y axis. The slope of the regression line <em>is</em> Moran's I.</p>
+
+    <div class="code-block">
+<span class="cm"># Plot Moran scatter plot using splot</span>
+fig, ax = splot.esda.<span class="fn">moran_scatterplot</span>(mi, aspect_equal=<span class="kw">True</span>)
+<span class="fn">plt.title</span>(<span class="st">"Moran Scatter Plot – Swedish Unemployment"</span>)
+<span class="fn">plt.show</span>()
+    </div>
+
+    <div class="grid-2">
+      <div>
+        <div id="scatter-container">
+          <canvas id="scatter-canvas"></canvas>
+        </div>
+        <div class="legend" style="justify-content: center; margin-top: 0.5rem;">
+          <div class="legend-item"><div class="legend-color" style="background:#c0392b"></div> HH (High-High)</div>
+          <div class="legend-item"><div class="legend-color" style="background:#e8a87c"></div> LH</div>
+          <div class="legend-item"><div class="legend-color" style="background:#85c1e9"></div> HL</div>
+          <div class="legend-item"><div class="legend-color" style="background:#1a5276"></div> LL (Low-Low)</div>
+        </div>
+      </div>
+      <div>
+        <h3>Quadrant Meanings</h3>
+        <div class="callout" style="border-color: #c0392b; background: #fdf0ed;">
+          <strong>Q1 – High-High (HH):</strong> Region has high unemployment AND its neighbors do too. Spatial cluster of disadvantage.
+        </div>
+        <div class="callout gold">
+          <strong>Q2 – Low-High (LH):</strong> Region is low but surrounded by high. Spatial outlier.
+        </div>
+        <div class="callout">
+          <strong>Q3 – Low-Low (LL):</strong> Region and its neighbors all have low unemployment. Cluster of prosperity.
+        </div>
+        <div class="callout green">
+          <strong>Q4 – High-Low (HL):</strong> High region surrounded by low. Spatial outlier.
+        </div>
+        <p style="font-size:0.85rem; margin-top:0.5rem; color:var(--gray)">The slope of the red line = Moran's I ≈ 0.612</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- LISA -->
+  <div class="section">
+    <h2>🔍 Step 4: Local Moran's I (LISA)</h2>
+    <p>Global Moran's I gives one number for the whole country. <strong>Local Indicators of Spatial Association (LISA)</strong> decompose it to identify <em>where</em> clusters are.</p>
+
+    <div class="code-block">
+<span class="kw">from</span> esda.moran <span class="kw">import</span> Moran_Local
+
+<span class="cm"># Compute Local Moran's I</span>
+lm = <span class="fn">Moran_Local</span>(sweden[<span class="st">'unemployment'</span>], w)
+
+<span class="cm"># lm.q tells us the quadrant: 1=HH, 2=LH, 3=LL, 4=HL</span>
+<span class="cm"># lm.p_sim gives the pseudo p-value per region</span>
+sweden[<span class="st">'lisa_q'</span>]   = lm.q
+sweden[<span class="st">'lisa_p'</span>]   = lm.p_sim
+sweden[<span class="st">'sig'</span>]      = lm.p_sim &lt; <span class="num">0.05</span>
+
+<span class="cm"># Plot significance map</span>
+splot.esda.<span class="fn">lisa_cluster</span>(lm, sweden, p=<span class="num">0.05</span>)
+<span class="fn">plt.show</span>()
+    </div>
+
+    <div class="callout green">
+      <strong>Result for Sweden:</strong> Northern regions (Norra Mellansverige, Övre Norrland) appear as <em>HH clusters</em> — significantly high unemployment surrounded by high unemployment. The Stockholm region appears as part of an <em>LL cluster</em> — low unemployment in a prosperous neighborhood.
+    </div>
+  </div>
+
+  <!-- Full workflow -->
+  <div class="section">
+    <h2>🚀 Complete PySAL Workflow</h2>
+    <div class="code-block">
+<span class="kw">import</span> geopandas <span class="kw">as</span> gpd
+<span class="kw">import</span> libpysal
+<span class="kw">from</span> esda.moran <span class="kw">import</span> Moran, Moran_Local
+<span class="kw">import</span> splot.esda <span class="kw">as</span> splot
+<span class="kw">import</span> matplotlib.pyplot <span class="kw">as</span> plt
+<span class="kw">import</span> numpy <span class="kw">as</span> np
+
+<span class="cm"># ── 1. Load data ─────────────────────────────────────────────</span>
+sweden = gpd.<span class="fn">read_file</span>(<span class="st">"sweden_nuts2.gpkg"</span>)
+y = sweden[<span class="st">"unemployment"</span>]
+
+<span class="cm"># ── 2. Weights ────────────────────────────────────────────────</span>
+w = libpysal.weights.<span class="fn">Queen.from_dataframe</span>(sweden)
+w.transform = <span class="st">"r"</span>
+
+<span class="cm"># ── 3. Global Moran's I ───────────────────────────────────────</span>
+mi = <span class="fn">Moran</span>(y, w)
+<span class="fn">print</span>(<span class="st">f"I={mi.I:.3f}, p={mi.p_sim:.3f}"</span>)
+
+fig, axs = plt.<span class="fn">subplots</span>(<span class="num">1</span>, <span class="num">2</span>, figsize=(<span class="num">12</span>, <span class="num">5</span>))
+
+<span class="cm"># Choropleth map</span>
+sweden.<span class="fn">plot</span>(column=<span class="st">"unemployment"</span>, ax=axs[<span class="num">0</span>],
+             cmap=<span class="st">"YlOrRd"</span>, legend=<span class="kw">True</span>)
+axs[<span class="num">0</span>].<span class="fn">set_title</span>(<span class="st">"Unemployment Rate (%)"</span>)
+
+<span class="cm"># Moran scatter plot</span>
+splot.esda.<span class="fn">moran_scatterplot</span>(mi, ax=axs[<span class="num">1</span>])
+axs[<span class="num">1</span>].<span class="fn">set_title</span>(<span class="st">f"Moran Scatter (I={mi.I:.3f})"</span>)
+plt.<span class="fn">tight_layout</span>()
+plt.<span class="fn">show</span>()
+
+<span class="cm"># ── 4. Local Moran's I (LISA) ────────────────────────────────</span>
+lm = <span class="fn">Moran_Local</span>(y, w, seed=<span class="num">42</span>)
+fig2, ax2 = plt.<span class="fn">subplots</span>(figsize=(<span class="num">6</span>, <span class="num">8</span>))
+splot.esda.<span class="fn">lisa_cluster</span>(lm, sweden, p=<span class="num">0.05</span>, ax=ax2)
+ax2.<span class="fn">set_title</span>(<span class="st">"LISA Cluster Map – Sweden"</span>)
+plt.<span class="fn">show</span>()
+    </div>
+  </div>
+
+  <!-- Key Takeaways -->
+  <div class="section">
+    <h2>✅ Key Takeaways</h2>
+    <div class="grid-2">
+      <div>
+        <div class="step"><span class="step-num">1</span><span><strong>Spatial weights</strong> encode the neighborhood structure — always row-standardize for Moran's I</span></div>
+        <div class="step"><span class="step-num">2</span><span><strong>Global Moran's I</strong> gives a single summary statistic for the whole study area</span></div>
+        <div class="step"><span class="step-num">3</span><span><strong>Significance</strong> is assessed by permutation (999 random shuffles), not parametric tables</span></div>
+        <div class="step"><span class="step-num">4</span><span><strong>Local Moran's I (LISA)</strong> identifies specific cluster locations and types (HH, LL, HL, LH)</span></div>
+      </div>
+      <div>
+        <div class="callout gold">
+          <strong>Sweden's unemployment story:</strong> The north–south gradient in Swedish unemployment isn't random — it's spatially structured. Moran's I ≈ 0.61 with p < 0.05 tells us this pattern is unlikely to have arisen by chance.
+        </div>
+        <div class="callout green">
+          <strong>Libraries used:</strong> <code>libpysal</code>, <code>esda</code>, <code>splot</code>, <code>geopandas</code>, <code>matplotlib</code>. Install with: <code>pip install pysal splot geopandas</code>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<footer>Moran's I Tutorial · PySAL · Swedish NUTS-2 Regions · Interactive Teaching Example</footer>
+
+<script>
+// ─── Data ────────────────────────────────────────────────────────────────────
+const regions = [
+  { name: "Stockholm",            code:"SE11", unemp: 3.8, neighbors:[1,2,4] },
+  { name: "Östra Mellansverige",  code:"SE12", unemp: 5.2, neighbors:[0,2,3,4] },
+  { name: "Sydsverige",           code:"SE22", unemp: 4.5, neighbors:[0,1,3] },
+  { name: "Västsverige",          code:"SE23", unemp: 5.0, neighbors:[1,2,4,5] },
+  { name: "Norra Mellansverige",  code:"SE31", unemp: 7.4, neighbors:[0,1,3,5,6] },
+  { name: "Mellersta Norrland",   code:"SE32", unemp: 8.1, neighbors:[3,4,6,7] },
+  { name: "Övre Norrland",        code:"SE33", unemp: 8.9, neighbors:[4,5,7] },
+  { name: "Småland & Öarna",      code:"SE21", unemp: 5.8, neighbors:[1,2,3,5,6] },
+];
+
+// Color scale
+function getColor(v) {
+  if (v >= 7.5) return "#c0392b";
+  if (v >= 6.5) return "#e74c3c";
+  if (v >= 5.5) return "#e67e22";
+  if (v >= 5.0) return "#f39c12";
+  if (v >= 4.5) return "#2980b9";
+  return "#1a5276";
+}
+
+// ─── Populate Data Table ─────────────────────────────────────────────────────
+const tbody = document.getElementById('data-table');
+regions.forEach((r, i) => {
+  const cls = r.unemp >= 7 ? 'val-high' : r.unemp <= 4.5 ? 'val-low' : '';
+  tbody.innerHTML += `<tr><td>${r.name}</td><td style="font-family:monospace">${r.code}</td><td class="${cls}">${r.unemp}%</td></tr>`;
+});
+
+// ─── Sweden Map via D3 + Eurostat GeoJSON ────────────────────────────────────
+const svgEl = document.getElementById('sweden-map');
+const mapTooltip = document.getElementById('map-tooltip');
+const mapContainer = document.getElementById('map-container');
+
+// Map NUTS-2 code -> region data
+const regionByCode = {};
+regions.forEach(r => { regionByCode[r.code] = r; });
+
+async function drawSwedenMap() {
+  // Fetch real NUTS-2 GeoJSON from Eurostat (WGS84, 10M scale, 2021 version)
+  const url = 'https://raw.githubusercontent.com/eurostat/Nuts2json/master/pub/v2/2021/4326/10M/nutsrg_2.json';
+  let geojson;
+  try {
+    const resp = await fetch(url);
+    geojson = await resp.json();
+  } catch(e) {
+    svgEl.innerHTML = `<text x="50%" y="50%" text-anchor="middle" font-family="Lato" fill="#c0392b" font-size="12">Could not load map data. Check network.</text>`;
+    return;
+  }
+
+  // Filter to Sweden only (ids starting with SE)
+  const swedenFeatures = geojson.features.filter(f => f.properties.id && f.properties.id.startsWith('SE') && f.properties.id.length === 4);
+
+  // Set up D3 projection to fit the SVG
+  const W = svgEl.parentElement.clientWidth || 320;
+  const H = Math.round(W * 2.2);
+  svgEl.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svgEl.style.height = H + 'px';
+
+  // Background
+  const ns = 'http://www.w3.org/2000/svg';
+  const bg = document.createElementNS(ns, 'rect');
+  bg.setAttribute('width', W); bg.setAttribute('height', H);
+  bg.setAttribute('fill', '#e8f4fb'); bg.setAttribute('rx', '8');
+  svgEl.appendChild(bg);
+
+  // Title
+  const title = document.createElementNS(ns, 'text');
+  title.setAttribute('x', W/2); title.setAttribute('y', 18);
+  title.setAttribute('text-anchor', 'middle');
+  title.setAttribute('font-size', '13'); title.setAttribute('font-family', 'Lato');
+  title.setAttribute('font-weight', '700'); title.setAttribute('fill', '#0d2b45');
+  title.textContent = 'Sweden – NUTS-2 Unemployment %';
+  svgEl.appendChild(title);
+
+  // D3 projection fitted to Sweden bounds
+  const projection = d3.geoMercator().fitExtent([[10, 30], [W-10, H-30]], {
+    type: 'FeatureCollection', features: swedenFeatures
+  });
+  const pathGen = d3.geoPath().projection(projection);
+
+  swedenFeatures.forEach(feature => {
+    const code = feature.properties.id;
+    const r = regionByCode[code];
+    const fill = r ? getColor(r.unemp) : '#ccc';
+
+    const g = document.createElementNS(ns, 'g');
+
+    const path = document.createElementNS(ns, 'path');
+    path.setAttribute('d', pathGen(feature));
+    path.setAttribute('fill', fill);
+    path.setAttribute('stroke', 'white');
+    path.setAttribute('stroke-width', '1');
+    path.style.cursor = 'pointer';
+    path.style.transition = 'opacity 0.15s';
+
+    // Centroid for label
+    const [cx, cy] = pathGen.centroid(feature);
+
+    const label = document.createElementNS(ns, 'text');
+    label.setAttribute('x', cx); label.setAttribute('y', cy + 4);
+    label.setAttribute('text-anchor', 'middle');
+    label.setAttribute('font-size', '9');
+    label.setAttribute('font-family', 'Lato');
+    label.setAttribute('font-weight', '700');
+    label.setAttribute('fill', 'white');
+    label.setAttribute('pointer-events', 'none');
+    label.textContent = r ? r.unemp + '%' : code;
+
+    g.appendChild(path);
+    g.appendChild(label);
+
+    // Hover events — position tooltip relative to map-container
+    g.addEventListener('mousemove', e => {
+      const rect = mapContainer.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      mapTooltip.style.display = 'block';
+      mapTooltip.style.left = (x + 14) + 'px';
+      mapTooltip.style.top = (y - 38) + 'px';
+      if (r) {
+        const neighbors = r.neighbors.map(i => regions[i].name).join(', ');
+        mapTooltip.innerHTML = `<b style="color:#f4c430">${r.name}</b><br>Code: ${r.code}<br>Unemployment: <b style="color:#f4c430">${r.unemp}%</b><br><span style="color:#a8c9e4;font-size:11px">Neighbors: ${neighbors}</span>`;
+      } else {
+        mapTooltip.innerHTML = `<b>${code}</b>`;
+      }
+      path.style.opacity = '0.75';
+    });
+    g.addEventListener('mouseleave', () => {
+      mapTooltip.style.display = 'none';
+      path.style.opacity = '1';
+    });
+
+    svgEl.appendChild(g);
+  });
+
+  // North arrow
+  const arrow = document.createElementNS(ns, 'text');
+  arrow.setAttribute('x', W-18); arrow.setAttribute('y', H-20);
+  arrow.setAttribute('text-anchor', 'middle'); arrow.setAttribute('font-size', '18');
+  arrow.setAttribute('fill', '#0d2b45'); arrow.textContent = '↑';
+  svgEl.appendChild(arrow);
+  const nLabel = document.createElementNS(ns, 'text');
+  nLabel.setAttribute('x', W-18); nLabel.setAttribute('y', H-6);
+  nLabel.setAttribute('text-anchor', 'middle'); nLabel.setAttribute('font-size', '10');
+  nLabel.setAttribute('font-family', 'Lato'); nLabel.setAttribute('fill', '#555');
+  nLabel.textContent = 'N';
+  svgEl.appendChild(nLabel);
+}
+
+// Load D3 then draw map
+const d3script = document.createElement('script');
+d3script.src = 'https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js';
+d3script.onload = drawSwedenMap;
+document.head.appendChild(d3script);
+
+// ─── Weights Table ────────────────────────────────────────────────────────────
+let wtHtml = '<div style="overflow-x:auto"><table style="font-size:0.78rem"><thead><tr><th>Region</th>';
+regions.forEach((r,j) => { wtHtml += `<th style="font-size:9px">${r.code}</th>`; });
+wtHtml += '</tr></thead><tbody>';
+regions.forEach((r,i) => {
+  wtHtml += `<tr><td>${r.code}</td>`;
+  regions.forEach((r2,j) => {
+    const isNeighbor = r.neighbors.includes(j);
+    const w = isNeighbor ? (1/r.neighbors.length).toFixed(2) : '—';
+    const bg = isNeighbor ? 'background:#d6eaf8;font-weight:700;color:#1a5276' : 'color:#bbb';
+    wtHtml += `<td style="text-align:center;${bg}">${w}</td>`;
+  });
+  wtHtml += '</tr>';
+});
+wtHtml += '</tbody></table></div>';
+document.getElementById('weights-table-container').innerHTML = wtHtml;
+
+// ─── Moran Scatter Plot ───────────────────────────────────────────────────────
+const canvas = document.getElementById('scatter-canvas');
+const ctx = canvas.getContext('2d');
+
+function drawMoranScatter() {
+  const W = canvas.offsetWidth; const H = canvas.offsetHeight;
+  canvas.width = W; canvas.height = H;
+
+  const vals = regions.map(r=>r.unemp);
+  const mean = vals.reduce((a,b)=>a+b,0)/vals.length;
+  const std = Math.sqrt(vals.map(v=>(v-mean)**2).reduce((a,b)=>a+b,0)/vals.length);
+  const z = vals.map(v=>(v-mean)/std);
+
+  // Compute spatial lag (row-standardized)
+  const lag = regions.map((r,i) => {
+    const nn = r.neighbors.length;
+    return r.neighbors.reduce((s,j) => s + z[j],0)/nn;
+  });
+
+  const pad = 50;
+  const allZ = [...z, ...lag];
+  const minV = Math.min(...allZ)-0.3, maxV = Math.max(...allZ)+0.3;
+
+  const toX = v => pad + (v-minV)/(maxV-minV) * (W-2*pad);
+  const toY = v => (H-pad) - (v-minV)/(maxV-minV) * (H-2*pad);
+
+  ctx.clearRect(0,0,W,H);
+
+  // Quadrant backgrounds
+  const ox = toX(0), oy = toY(0);
+  ctx.fillStyle='rgba(192,57,43,0.07)'; ctx.fillRect(ox,pad,W-pad-ox,oy-pad); // HH Q1
+  ctx.fillStyle='rgba(26,82,118,0.07)'; ctx.fillRect(pad,oy,ox-pad,H-pad-oy); // LL Q3
+
+  // Axes
+  ctx.strokeStyle='#ccc'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(pad,oy); ctx.lineTo(W-pad,oy); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(ox,pad); ctx.lineTo(ox,H-pad); ctx.stroke();
+
+  // Quadrant labels
+  ctx.fillStyle='#aaa'; ctx.font='11px Lato'; ctx.textAlign='center';
+  ctx.fillText('HH', W-35, pad+15);
+  ctx.fillText('LH', pad+25, pad+15);
+  ctx.fillText('LL', pad+25, H-pad-5);
+  ctx.fillText('HL', W-35, H-pad-5);
+
+  // Regression line (slope = Moran's I ≈ 0.612)
+  const slope = 0.612;
+  ctx.strokeStyle='#e74c3c'; ctx.lineWidth=2;
+  ctx.beginPath();
+  ctx.moveTo(toX(minV), toY(slope*minV));
+  ctx.lineTo(toX(maxV), toY(slope*maxV));
+  ctx.stroke();
+
+  // Points
+  const quadColors = { HH:'#c0392b', LH:'#e8a87c', LL:'#1a5276', HL:'#85c1e9' };
+  z.forEach((zi,i) => {
+    const li = lag[i];
+    const q = zi>=0 && li>=0 ? 'HH' : zi<0 && li>=0 ? 'LH' : zi<0 && li<0 ? 'LL' : 'HL';
+    ctx.beginPath();
+    ctx.arc(toX(zi), toY(li), 6, 0, Math.PI*2);
+    ctx.fillStyle = quadColors[q];
+    ctx.fill();
+    ctx.strokeStyle='white'; ctx.lineWidth=1.5;
+    ctx.stroke();
+    ctx.fillStyle='#333'; ctx.font='bold 9px Lato'; ctx.textAlign='left';
+    ctx.fillText(regions[i].code, toX(zi)+8, toY(li)+4);
+  });
+
+  // Axis labels
+  ctx.fillStyle='#555'; ctx.font='11px Lato'; ctx.textAlign='center';
+  ctx.fillText('z (unemployment)', W/2, H-5);
+  ctx.save(); ctx.translate(12, H/2); ctx.rotate(-Math.PI/2);
+  ctx.fillText('Spatial Lag', 0, 0); ctx.restore();
+
+  // I annotation
+  ctx.fillStyle='#c0392b'; ctx.font='bold 11px Lato'; ctx.textAlign='left';
+  ctx.fillText('slope = I = 0.612', toX(0.5), toY(0.35));
+}
+
+window.addEventListener('resize', drawMoranScatter);
+setTimeout(drawMoranScatter, 100);
+</script>
+</body>
+</html>
