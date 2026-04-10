@@ -84,6 +84,7 @@
       padding-right: var(--right-bar);
       position: relative;
       z-index: 1;
+      align-items: stretch;
     }
 
     /* ── LEFT PANEL ─────────────────────── */
@@ -274,6 +275,9 @@
     .main {
       padding: clamp(2.5rem, 4vw, 5rem) clamp(2rem, 5vw, 5.5rem) 7rem;
       max-width: 920px;
+      background: var(--paper);
+      /* stretch to fill full grid row so no dark bar shows through below */
+      min-height: 100vh;
     }
 
     /* SECTIONS */
@@ -600,7 +604,66 @@
       .bar-left-fixed, .bar-right-fixed { display: none; }
       .panel-bg { filter: brightness(0.35) saturate(0.6); }
       .panel-links { margin-top: 2rem; }
-      .main { padding: 2rem 1.25rem 4rem; max-width: 100%; }
+      .main {
+        padding: 2rem 1.25rem 4rem;
+        max-width: 100%;
+        /* Ensure main is always fully opaque — covers any dark bleeds */
+        background: var(--paper);
+        position: relative;
+        z-index: 2;
+      }
+
+      /* Body text paragraphs — paper pill so they're readable over anything */
+      .body-text {
+        background: var(--paper);
+        border-radius: 6px;
+        padding: 0.7rem 0.9rem;
+        margin-left: -0.9rem;
+        margin-right: -0.9rem;
+      }
+
+      /* Research track text area */
+      .track-content {
+        background: var(--paper);
+        border-radius: 6px;
+        padding: 0.6rem 0.8rem;
+      }
+
+      /* Course rows */
+      .course-item {
+        background: var(--paper);
+        border-radius: 6px;
+        padding: 0.6rem 0.8rem;
+      }
+
+      /* Publication year heading */
+      .pub-year {
+        display: inline-block;
+        background: var(--paper);
+        border-radius: 4px;
+        padding: 0.15rem 0.45rem;
+      }
+
+      /* Publication status text */
+      .pub-status {
+        background: var(--paper);
+        border-radius: 4px;
+        padding: 0.25rem 0.55rem;
+      }
+
+      /* Filter buttons row */
+      .pub-controls {
+        background: var(--paper);
+        border-radius: 6px;
+        padding: 0.45rem 0.5rem;
+      }
+
+      /* Any inline-styled <p> footnotes (portfolio links etc) */
+      .main section > p {
+        background: var(--paper);
+        border-radius: 5px;
+        padding: 0.45rem 0.7rem;
+      }
     }
   </style>
 </head>
@@ -886,7 +949,7 @@
       <div class="contact-grid">
         <div class="contact-item">
           <div class="contact-label">Email</div>
-          <div class="contact-val"><a href="mailto:philipp.stark@keg.lu.se">philipp.stark@keg.lu.se</a></div>
+          <div class="contact-val"><a href="/cdn-cgi/l/email-protection#9dedf5f4f1f4ededb3eee9fceff6ddf6f8fab3f1e8b3eef8"><span class="__cf_email__" data-cfemail="e6968e8f8a8f9696c8959287948da68d8381c88a93c89583">[email&#160;protected]</span></a></div>
         </div>
         <div class="contact-item">
           <div class="contact-label">Phone</div>
@@ -913,7 +976,7 @@
   <div class="right-bar-label">Computational Social Science · Lund University</div>
 </div>
 
-<script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 /* ── ACTIVE NAV ── */
 const navObs = new IntersectionObserver(entries => {
   entries.forEach(e => {
@@ -970,15 +1033,4 @@ document.querySelectorAll('.pub-filter-btn').forEach(btn => {
     btn.classList.add('active');
     const f = btn.dataset.filter;
     document.querySelectorAll('.pub-year-group').forEach(g => {
-      if (f === 'all') { g.style.display = ''; return; }
-      const yr = parseInt(g.dataset.year);
-      g.style.display = (f === 'older' ? yr < 2024 : g.dataset.year === f) ? '' : 'none';
-    });
-  });
-});
-
-/* ── INIT ── */
-renderPubs(PUBS);
-</script>
-</body>
-</html>
+      if (f === 'all') { g.style.displa
